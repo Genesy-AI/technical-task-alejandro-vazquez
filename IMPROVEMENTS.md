@@ -20,7 +20,7 @@ Only pending items are listed. Resolved items are removed; their history lives i
 | IMP-02 | Frontend build is broken on `main`                    | Frontend     | High     | To do          |
 | IMP-04 | Country code list duplicated across FE and BE         | Architecture | Medium   | To do          |
 | IMP-07 | Email verification blocks the HTTP request            | Backend      | Medium   | To do          |
-| IMP-08 | API lacks request validation, layering and tests      | Backend      | Medium   | To do          |
+| IMP-08 | API lacks request validation, layering and tests      | Full stack   | Medium   | To do          |
 | IMP-09 | Deleting leads has no confirmation                    | Frontend     | Medium   | To do          |
 | IMP-03 | Seeded lead uses non-ISO country `UK`                 | Data         | Low      | Needs decision |
 | IMP-10 | CSV import reports success when only duplicates found | Frontend     | Low      | To do          |
@@ -90,16 +90,20 @@ Start the workflows with stable IDs and return 202, then have the UI poll `email
 
 ## IMP-08 · API lacks request validation, layering and tests
 
-**Status:** To do · **Priority:** Medium · **Area:** Backend
+**Status:** To do · **Priority:** Medium · **Area:** Full stack
 
 **Problem**
-`backend/src/index.ts` holds every route, with ad-hoc inline validation and direct Prisma calls. It has no schema validation and no router or service layer. Importing it starts the server and the Temporal worker, so routes cannot be tested. Test coverage is limited to a few utils, the workflow and one component.
+`backend/src/index.ts` holds every route, with ad-hoc inline validation and direct Prisma calls. It has no schema validation and no router or service layer. Importing it starts the server and the Temporal worker, so routes cannot be tested. Test coverage is limited to a few utils, the workflow and one component: there are no React component tests for the main screens, no integration tests and no end-to-end tests.
 
 **Evidence (confirmed)**
-Validation is hand-written per route: the `POST /leads/bulk` filter (`backend/src/index.ts:205-218`), and `POST /leads` only checks presence and coerces with `String()` (`backend/src/index.ts:25-40`). `backend/src/index.ts` calls `app.listen(4000)` and `runTemporalWorker()` at module load, and `backend/package.json` has no validation library. Existing tests cover `countryCodes`, `messageGenerator` and the workflows in the backend, and `countryCodes`, `csvParser` and `TemplateFieldPicker` in the frontend. There are no tests for routes, `LeadsList`, `CsvImportModal`, `MessageTemplateModal` or the mutations.
+Validation is hand-written per route: the `POST /leads/bulk` filter (`backend/src/index.ts:205-218`), and `POST /leads` only checks presence and coerces with `String()` (`backend/src/index.ts:25-40`). `backend/src/index.ts` calls `app.listen(4000)` and `runTemporalWorker()` at module load, and `backend/package.json` has no validation library. Existing tests cover `countryCodes`, `messageGenerator` and the workflows in the backend, and `countryCodes`, `csvParser` and `TemplateFieldPicker` in the frontend. There are no tests for routes, `LeadsList`, `CsvImportModal`, `MessageTemplateModal` or the mutations. `TemplateFieldPicker.test.tsx` renders with `react-dom/client` directly because `@testing-library/react` is not installed, and neither project has `supertest` or an e2e tool (Playwright, Cypress).
 
 **Next step**
-Export the Express `app` from its own module and start the server and worker in a separate entry point. Split routes into `routes/leads.ts` and Prisma access into `services/leads.ts`. Validate bodies, params and queries with schemas (for example zod middleware) that return consistent 400 errors. Add route tests with `supertest`, service unit tests, and frontend tests for `LeadsList`, `CsvImportModal` and `MessageTemplateModal`.
+Export the Express `app` from its own module and start the server and worker in a separate entry point. Split routes into `routes/leads.ts` and Prisma access into `services/leads.ts`. Validate bodies, params and queries with schemas (for example zod middleware) that return consistent 400 errors. Then add three test layers:
+
+- React component tests with `@testing-library/react` for `LeadsList`, `CsvImportModal` and `MessageTemplateModal`, mocking `api.leads.*`.
+- Integration tests: backend route tests with `supertest` against a test SQLite database, and frontend tests of the mutations and query invalidation against a mocked API (for example `msw`).
+- End-to-end tests with Playwright against the running API, worker and Vite app, covering CSV import, delete, email verification and message generation.
 
 ---
 
