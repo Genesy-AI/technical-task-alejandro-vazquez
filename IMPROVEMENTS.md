@@ -6,7 +6,7 @@
 | Owner        | Engineering                   |
 | Last updated | 2026-10-23                    |
 | Source       | Findings from completed tasks |
-| Next ID      | IMP-12                        |
+| Next ID      | IMP-15                        |
 
 Only pending items are listed. Resolved items are removed; their history lives in git.
 
@@ -22,9 +22,12 @@ Only pending items are listed. Resolved items are removed; their history lives i
 | IMP-07 | Email verification blocks the HTTP request            | Backend      | Medium   | To do          |
 | IMP-08 | API lacks request validation, layering and tests      | Full stack   | Medium   | To do          |
 | IMP-09 | Deleting leads has no confirmation                    | Frontend     | Medium   | To do          |
+| IMP-12 | CSV import runs in one blocking request               | Full stack   | Medium   | To do          |
+| IMP-13 | Leads table loads and renders every row               | Full stack   | Medium   | To do          |
 | IMP-03 | Seeded lead uses non-ISO country `UK`                 | Data         | Low      | Needs decision |
 | IMP-10 | CSV import reports success when only duplicates found | Frontend     | Low      | To do          |
 | IMP-11 | No range selection in the leads table                 | Frontend     | Low      | To do          |
+| IMP-14 | Dependency versions are not pinned                    | Tooling      | Low      | To do          |
 
 ---
 
@@ -149,3 +152,48 @@ Leads can only be selected one checkbox at a time or all at once, so selecting a
 
 **Next step**
 Track the last clicked row index, and on shift+click select or deselect every row between it and the current row in list order.
+
+---
+
+## IMP-12 · CSV import runs in one blocking request
+
+**Status:** To do · **Priority:** Medium · **Area:** Full stack
+
+**Problem**
+The whole CSV is sent in a single `POST /leads/bulk` request, which inserts the rows one by one before responding. Large files will hit the request body limit or time out, and the user gets no progress feedback while the import runs.
+
+**Evidence (confirmed)**
+`frontend/src/components/CsvImportModal.tsx:98-112` sends every parsed row in one `importMutation.mutate` call. `backend/src/index.ts:10` uses `express.json()` with its default 100kb body limit. `backend/src/index.ts:227` builds one `OR` clause per row for the duplicate check, and `backend/src/index.ts:247-249` awaits a `prisma.lead.create` for each lead in a loop.
+
+**Next step**
+Create an import job that returns 202 with a job ID. Process rows in chunks in the background, for example in a Temporal workflow with one activity per chunk using `createMany`, and record progress (processed, imported, duplicates, invalid). Have the modal poll a `GET /leads/imports/:id` endpoint (TanStack Query `refetchInterval`) to show a progress bar and the final summary. This follows the same pattern proposed for email verification in IMP-07.
+
+---
+
+## IMP-13 · Leads table loads and renders every row
+
+**Status:** To do · **Priority:** Medium · **Area:** Full stack
+
+**Problem**
+The API returns every lead and the table renders a DOM row for each one, so thousands of leads make the response, memory use and rendering slow.
+
+**Evidence (confirmed)**
+`backend/src/index.ts:56-60`: `GET /leads` calls `prisma.lead.findMany()` with no `take`, `skip` or cursor. `frontend/src/components/LeadsList.tsx:275` maps over all of `leads.data`, and select all (`LeadsList.tsx:75`) collects every loaded id.
+
+**Next step**
+Add cursor or offset pagination (with sorting and a total count) to `GET /leads`, and either paginate the table or use `useInfiniteQuery` with row virtualization (for example `@tanstack/react-virtual`). Decide how "select all" behaves across pages, for example selecting by filter on the server.
+
+---
+
+## IMP-14 · Dependency versions are not pinned
+
+**Status:** To do · **Priority:** Low · **Area:** Tooling
+
+**Problem**
+Dependencies are declared with caret ranges, so a fresh install without the lockfile, or a lockfile update, can pull in new minor versions without anyone choosing them.
+
+**Evidence (confirmed)**
+`backend/package.json` has 14 `^` ranges and `frontend/package.json` has 29. Both projects commit a `pnpm-lock.yaml`, but neither has an `.npmrc` with `save-exact` or a `packageManager` field to pin pnpm itself.
+
+**Next step**
+Pin every dependency to the exact version in the lockfile, add `save-exact=true` to an `.npmrc` in each project, set `packageManager` to pin pnpm, and use Renovate or Dependabot for deliberate upgrades.
