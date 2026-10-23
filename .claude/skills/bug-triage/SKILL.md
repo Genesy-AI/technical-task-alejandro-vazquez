@@ -19,7 +19,7 @@ The user gives you a bug description. Follow this order.
 5. **After approval:** fix without unrelated refactors, add a regression test that
    fails before and passes after, run the existing suite, and report the result.
 6. **Finish with** the diff and a short summary. Do not commit.
-7. If the finding reveals a risk or changes a priority, add one line to
-   IMPROVEMENTS.md (file, what you saw, confirmed or suspected).
+7. If the finding reveals a risk or changes a priority, update IMPROVEMENTS.md
+   following `.claude/rules/improvements-backlog.md` (ask before adding items).
 
 Never include secrets or API keys in code, logs or commits.
