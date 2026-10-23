@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { generateMessageFromTemplate, Lead } from './messageGenerator'
+import { generateMessageFromTemplate, Lead, TEMPLATE_FIELDS } from './messageGenerator'
 
 describe('generateMessageFromTemplate', () => {
   const fullLead: Lead = {
@@ -9,6 +9,9 @@ describe('generateMessageFromTemplate', () => {
     jobTitle: 'Software Engineer',
     companyName: 'Tech Corp',
     countryCode: 'US',
+    phoneNumber: '+1 555 0100',
+    yearsAtCompany: 4,
+    linkedinUrl: 'https://www.linkedin.com/in/johndoe',
   }
 
   const partialLead: Lead = {
@@ -204,6 +207,50 @@ describe('generateMessageFromTemplate', () => {
       const template = 'Hi {firstName} from {companyName}!'
       const result = generateMessageFromTemplate(template, emojiLead)
       expect(result).toBe('Hi John 😊 from TechCorp 🚀!')
+    })
+  })
+
+  describe('phone, years at company and LinkedIn fields', () => {
+    it('should replace the new fields', () => {
+      const template = 'Call {phoneNumber}, {yearsAtCompany} years in, see {linkedinUrl}'
+      const result = generateMessageFromTemplate(template, fullLead)
+      expect(result).toBe('Call +1 555 0100, 4 years in, see https://www.linkedin.com/in/johndoe')
+    })
+
+    it('should treat zero years at company as a value', () => {
+      const result = generateMessageFromTemplate('{yearsAtCompany} years', { ...fullLead, yearsAtCompany: 0 })
+      expect(result).toBe('0 years')
+    })
+
+    it('should throw when a new field is missing', () => {
+      expect(() => generateMessageFromTemplate('{phoneNumber}', minimalLead)).toThrow(
+        'Missing required field: phoneNumber'
+      )
+      expect(() =>
+        generateMessageFromTemplate('{yearsAtCompany}', { ...fullLead, yearsAtCompany: null })
+      ).toThrow('Missing required field: yearsAtCompany')
+      expect(() => generateMessageFromTemplate('{linkedinUrl}', partialLead)).toThrow(
+        'Missing required field: linkedinUrl'
+      )
+    })
+  })
+
+  describe('TEMPLATE_FIELDS', () => {
+    it('should make every listed field usable in a template', () => {
+      const template = TEMPLATE_FIELDS.map((field) => `{${field.key}}`).join('|')
+      const result = generateMessageFromTemplate(template, fullLead)
+      expect(result).toBe(TEMPLATE_FIELDS.map((field) => String(fullLead[field.key])).join('|'))
+    })
+
+    it('should list each field once', () => {
+      const keys = TEMPLATE_FIELDS.map((field) => field.key)
+      expect(new Set(keys).size).toBe(keys.length)
+    })
+
+    it('should reject object prototype keys as unknown fields', () => {
+      expect(() => generateMessageFromTemplate('{toString}', fullLead)).toThrow(
+        'Unknown field in template: toString'
+      )
     })
   })
 })

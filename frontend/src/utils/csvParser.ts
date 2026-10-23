@@ -8,6 +8,9 @@ export interface CsvLead {
   jobTitle?: string
   countryCode?: string
   companyName?: string
+  phoneNumber?: string
+  yearsAtCompany?: number
+  linkedinUrl?: string
   isValid: boolean
   errors: string[]
   rowIndex: number
@@ -16,6 +19,24 @@ export interface CsvLead {
 export const isValidEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   return emailRegex.test(email)
+}
+
+export const parseYearsAtCompany = (value: string): number | null => {
+  if (!/^\d+$/.test(value)) return null
+  return Number(value)
+}
+
+export const isValidLinkedinUrl = (value: string): boolean => {
+  try {
+    const url = new URL(value)
+    const host = url.hostname.toLowerCase()
+    return (
+      (url.protocol === 'https:' || url.protocol === 'http:') &&
+      (host === 'linkedin.com' || host.endsWith('.linkedin.com'))
+    )
+  } catch {
+    return false
+  }
 }
 
 export const parseCsv = (content: string): CsvLead[] => {
@@ -50,6 +71,7 @@ export const parseCsv = (content: string): CsvLead[] => {
     if (Object.values(row).every((value) => !value)) return
 
     const lead: Partial<CsvLead> = { rowIndex: index + 2 }
+    let rawYearsAtCompany = ''
 
     Object.entries(row).forEach(([header, value]) => {
       const normalizedHeader = header.toLowerCase().replace(/[^a-z]/g, '')
@@ -74,6 +96,20 @@ export const parseCsv = (content: string): CsvLead[] => {
         case 'companyname':
           lead.companyName = trimmedValue || undefined
           break
+        case 'phonenumber':
+        case 'phone':
+          lead.phoneNumber = trimmedValue || undefined
+          break
+        case 'yearsatcompany':
+        case 'yearsatcurrentcompany':
+        case 'yearsinrole':
+          rawYearsAtCompany = trimmedValue
+          break
+        case 'linkedinurl':
+        case 'linkedin':
+        case 'linkedinprofile':
+          lead.linkedinUrl = trimmedValue || undefined
+          break
       }
     })
 
@@ -91,6 +127,17 @@ export const parseCsv = (content: string): CsvLead[] => {
     }
     if (lead.countryCode && !isValidCountryCode(lead.countryCode)) {
       errors.push('Invalid country code')
+    }
+    if (rawYearsAtCompany) {
+      const years = parseYearsAtCompany(rawYearsAtCompany)
+      if (years === null) {
+        errors.push('Years at company must be a non-negative whole number')
+      } else {
+        lead.yearsAtCompany = years
+      }
+    }
+    if (lead.linkedinUrl && !isValidLinkedinUrl(lead.linkedinUrl)) {
+      errors.push('Invalid LinkedIn URL')
     }
 
     data.push({

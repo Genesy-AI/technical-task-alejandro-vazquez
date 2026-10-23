@@ -1,8 +1,9 @@
 import { FC, useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { api } from '../api'
+import { TemplateFieldPicker } from './TemplateFieldPicker'
 
 interface MessageTemplateModalProps {
   isOpen: boolean
@@ -25,6 +26,14 @@ export const MessageTemplateModal: FC<MessageTemplateModalProps> = ({
   } | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const queryClient = useQueryClient()
+
+  const templateFields = useQuery({
+    queryKey: ['leads', 'templateFields'],
+    queryFn: async () => api.leads.getTemplateFields(),
+    staleTime: Infinity,
+    enabled: isOpen,
+    retry: false,
+  })
 
   const generateMessagesMutation = useMutation({
     mutationFn: async (data: { leadIds: number[]; template: string }) => api.leads.generateMessages(data),
@@ -106,8 +115,6 @@ export const MessageTemplateModal: FC<MessageTemplateModalProps> = ({
     }
   }, [isOpen, handleClose])
 
-  const availableFields = ['firstName', 'lastName', 'email', 'jobTitle', 'companyName', 'countryCode']
-
   const insertField = (field: string) => {
     if (textareaRef.current) {
       const textarea = textareaRef.current
@@ -156,19 +163,13 @@ export const MessageTemplateModal: FC<MessageTemplateModalProps> = ({
                 Message Template
               </label>
               <div className="space-y-3">
-                <div className="flex flex-wrap gap-2">
-                  <span className="text-sm text-gray-600">Insert field:</span>
-                  {availableFields.map((field) => (
-                    <button
-                      key={field}
-                      type="button"
-                      onClick={() => insertField(field)}
-                      className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors"
-                    >
-                      {`{${field}}`}
-                    </button>
-                  ))}
-                </div>
+                <TemplateFieldPicker
+                  fields={templateFields.data}
+                  isLoading={templateFields.isLoading}
+                  isError={templateFields.isError}
+                  onRetry={() => templateFields.refetch()}
+                  onInsert={insertField}
+                />
                 <textarea
                   ref={textareaRef}
                   id="message-template"

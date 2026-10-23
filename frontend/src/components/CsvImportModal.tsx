@@ -1,8 +1,7 @@
 import { FC, useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { api } from '../api'
+import { useApiMutation } from '../api'
 import { CsvLead, parseCsv } from '../utils/csvParser'
 
 interface CsvImportModalProps {
@@ -15,7 +14,6 @@ export const CsvImportModal: FC<CsvImportModalProps> = ({ isOpen, onClose }) => 
   const [isDragging, setIsDragging] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const queryClient = useQueryClient()
 
   const stats = useMemo(() => {
     const validLeads = csvData.filter((lead) => lead.isValid)
@@ -89,47 +87,49 @@ export const CsvImportModal: FC<CsvImportModalProps> = ({ isOpen, onClose }) => 
     setIsDragging(false)
   }, [])
 
-  const importMutation = useMutation({
-    mutationFn: async (leads: CsvLead[]) => {
-      const validLeads = leads.filter((lead) => lead.isValid)
-
-      const leadsToImport = validLeads.map((lead) => ({
-        firstName: lead.firstName,
-        lastName: lead.lastName,
-        email: lead.email,
-        jobTitle: lead.jobTitle || undefined,
-        countryCode: lead.countryCode || undefined,
-        companyName: lead.companyName || undefined,
-      }))
-
-      return api.leads.bulkImport({ leads: leadsToImport })
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['leads', 'getMany'] })
-
-      let message = `Successfully imported ${data.importedCount} leads!`
-      if (data.duplicatesSkipped > 0) {
-        message += ` (${data.duplicatesSkipped} duplicates skipped)`
-      }
-      if (data.invalidLeads > 0) {
-        message += ` (${data.invalidLeads} invalid leads excluded)`
-      }
-
-      toast.success(message)
-      onClose()
-      setCsvData([])
-    },
-    onError: () => {
-      toast.error('Error importing leads. Please try again.')
-    },
-  })
+  const importMutation = useApiMutation('leads.bulkImport')
 
   const handleImport = () => {
     if (stats.valid === 0) {
       toast.error('No valid leads to import')
       return
     }
-    importMutation.mutate(csvData)
+
+    const leadsToImport = csvData
+      .filter((lead) => lead.isValid)
+      .map((lead) => ({
+        firstName: lead.firstName,
+        lastName: lead.lastName,
+        email: lead.email,
+        jobTitle: lead.jobTitle || undefined,
+        countryCode: lead.countryCode || undefined,
+        companyName: lead.companyName || undefined,
+        phoneNumber: lead.phoneNumber || undefined,
+        yearsAtCompany: lead.yearsAtCompany,
+        linkedinUrl: lead.linkedinUrl || undefined,
+      }))
+
+    importMutation.mutate(
+      { leads: leadsToImport },
+      {
+        onSuccess: (data) => {
+          let message = `Successfully imported ${data.importedCount} leads!`
+          if (data.duplicatesSkipped > 0) {
+            message += ` (${data.duplicatesSkipped} duplicates skipped)`
+          }
+          if (data.invalidLeads > 0) {
+            message += ` (${data.invalidLeads} invalid leads excluded)`
+          }
+
+          toast.success(message)
+          onClose()
+          setCsvData([])
+        },
+        onError: () => {
+          toast.error('Error importing leads. Please try again.')
+        },
+      }
+    )
   }
 
   const handleClose = useCallback(() => {
@@ -238,7 +238,7 @@ export const CsvImportModal: FC<CsvImportModalProps> = ({ isOpen, onClose }) => 
                   </p>
                   <p className="text-sm text-gray-500">
                     CSV must include: firstName, lastName, email (required). Optional: jobTitle, countryCode,
-                    companyName
+                    companyName, phoneNumber, yearsAtCompany, linkedinUrl
                   </p>
                 </div>
               )}
@@ -285,6 +285,15 @@ export const CsvImportModal: FC<CsvImportModalProps> = ({ isOpen, onClose }) => 
                         Company
                       </th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Phone
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Years
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        LinkedIn
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                         Errors
                       </th>
                     </tr>
@@ -309,6 +318,16 @@ export const CsvImportModal: FC<CsvImportModalProps> = ({ isOpen, onClose }) => 
                         </td>
                         <td className="px-3 py-2 text-sm text-gray-900">{lead.email || '-'}</td>
                         <td className="px-3 py-2 text-sm text-gray-900">{lead.companyName || '-'}</td>
+                        <td className="px-3 py-2 text-sm text-gray-900 whitespace-nowrap">
+                          {lead.phoneNumber || '-'}
+                        </td>
+                        <td className="px-3 py-2 text-sm text-gray-900">{lead.yearsAtCompany ?? '-'}</td>
+                        <td
+                          className="px-3 py-2 text-sm text-gray-900 max-w-[12rem] truncate"
+                          title={lead.linkedinUrl}
+                        >
+                          {lead.linkedinUrl || '-'}
+                        </td>
                         <td className="px-3 py-2 text-sm text-red-600">{lead.errors.join(', ') || '-'}</td>
                       </tr>
                     ))}

@@ -4,6 +4,7 @@ import { LeadsDeleteManyInput, LeadsDeleteManyOutput } from '../types/leads/dele
 import { LeadsGenerateMessagesInput, LeadsGenerateMessagesOutput } from '../types/leads/generateMessages'
 import { LeadsGetManyInput, LeadsGetManyOutput } from '../types/leads/getMany'
 import { LeadsGetOneInput, LeadsGetOneOutput } from '../types/leads/getOne'
+import { LeadsGetTemplateFieldsInput, LeadsGetTemplateFieldsOutput } from '../types/leads/getTemplateFields'
 import { LeadsUpdateInput, LeadsUpdateOutput } from '../types/leads/update'
 import { LeadsBulkImportInput, LeadsBulkImportOutput } from '../types/leads/bulkImport'
 import { LeadsVerifyEmailsInput, LeadsVerifyEmailsOutput } from '../types/leads/verifyEmails'
@@ -21,5 +22,9 @@ export const leadsApi = {
     '/leads/generate-messages'
   ),
   bulkImport: endpoint<LeadsBulkImportOutput, LeadsBulkImportInput>('post', '/leads/bulk'),
+  getTemplateFields: endpoint<LeadsGetTemplateFieldsOutput, LeadsGetTemplateFieldsInput>(
+    'get',
+    '/leads/template-fields'
+  ),
   verifyEmails: endpoint<LeadsVerifyEmailsOutput, LeadsVerifyEmailsInput>('post', '/leads/verify-emails'),
 } as const satisfies ApiModule
