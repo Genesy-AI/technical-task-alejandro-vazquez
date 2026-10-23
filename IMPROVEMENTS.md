@@ -6,7 +6,7 @@
 | Owner        | Engineering                   |
 | Last updated | 2026-10-23                    |
 | Source       | Findings from completed tasks |
-| Next ID      | IMP-08                        |
+| Next ID      | IMP-12                        |
 
 Only pending items are listed. Resolved items are removed; their history lives in git.
 
@@ -15,13 +15,16 @@ Only pending items are listed. Resolved items are removed; their history lives i
 
 ## Summary
 
-| ID     | Title                                         | Area         | Priority | Status         |
-| ------ | --------------------------------------------- | ------------ | -------- | -------------- |
-| IMP-02 | Frontend build is broken on `main`            | Frontend     | High     | To do          |
-| IMP-04 | Country code list duplicated across FE and BE | Architecture | Medium   | To do          |
-| IMP-05 | API routes cannot be tested in isolation      | Backend      | Medium   | To do          |
-| IMP-07 | Email verification blocks the HTTP request    | Backend      | Medium   | To do          |
-| IMP-03 | Seeded lead uses non-ISO country `UK`         | Data         | Low      | Needs decision |
+| ID     | Title                                                 | Area         | Priority | Status         |
+| ------ | ----------------------------------------------------- | ------------ | -------- | -------------- |
+| IMP-02 | Frontend build is broken on `main`                    | Frontend     | High     | To do          |
+| IMP-04 | Country code list duplicated across FE and BE         | Architecture | Medium   | To do          |
+| IMP-07 | Email verification blocks the HTTP request            | Backend      | Medium   | To do          |
+| IMP-08 | API lacks request validation, layering and tests      | Backend      | Medium   | To do          |
+| IMP-09 | Deleting leads has no confirmation                    | Frontend     | Medium   | To do          |
+| IMP-03 | Seeded lead uses non-ISO country `UK`                 | Data         | Low      | Needs decision |
+| IMP-10 | CSV import reports success when only duplicates found | Frontend     | Low      | To do          |
+| IMP-11 | No range selection in the leads table                 | Frontend     | Low      | To do          |
 
 ---
 
@@ -70,21 +73,6 @@ Introduce a shared package (for example a pnpm workspace) for lead types and val
 
 ---
 
-## IMP-05 · API routes cannot be tested in isolation
-
-**Status:** To do · **Priority:** Medium · **Area:** Backend
-
-**Problem**
-Importing `backend/src/index.ts` calls `app.listen` and starts the Temporal worker. Route handlers therefore have no automated tests; the CSV country code fix could only test the extracted helper.
-
-**Evidence (confirmed)**
-`backend/src/index.ts` calls `app.listen(4000)` and `runTemporalWorker()` at module load.
-
-**Next step**
-Export the Express `app` from its own module, start the server and worker in a separate entry point, and add route tests with `supertest`.
-
----
-
 ## IMP-07 · Email verification blocks the HTTP request
 
 **Status:** To do · **Priority:** Medium · **Area:** Backend
@@ -97,3 +85,63 @@ Export the Express `app` from its own module, start the server and worker in a s
 
 **Next step**
 Start the workflows with stable IDs and return 202, then have the UI poll `emailVerified`.
+
+---
+
+## IMP-08 · API lacks request validation, layering and tests
+
+**Status:** To do · **Priority:** Medium · **Area:** Backend
+
+**Problem**
+`backend/src/index.ts` holds every route, with ad-hoc inline validation and direct Prisma calls. It has no schema validation and no router or service layer. Importing it starts the server and the Temporal worker, so routes cannot be tested. Test coverage is limited to a few utils, the workflow and one component.
+
+**Evidence (confirmed)**
+Validation is hand-written per route: the `POST /leads/bulk` filter (`backend/src/index.ts:205-218`), and `POST /leads` only checks presence and coerces with `String()` (`backend/src/index.ts:25-40`). `backend/src/index.ts` calls `app.listen(4000)` and `runTemporalWorker()` at module load, and `backend/package.json` has no validation library. Existing tests cover `countryCodes`, `messageGenerator` and the workflows in the backend, and `countryCodes`, `csvParser` and `TemplateFieldPicker` in the frontend. There are no tests for routes, `LeadsList`, `CsvImportModal`, `MessageTemplateModal` or the mutations.
+
+**Next step**
+Export the Express `app` from its own module and start the server and worker in a separate entry point. Split routes into `routes/leads.ts` and Prisma access into `services/leads.ts`. Validate bodies, params and queries with schemas (for example zod middleware) that return consistent 400 errors. Add route tests with `supertest`, service unit tests, and frontend tests for `LeadsList`, `CsvImportModal` and `MessageTemplateModal`.
+
+---
+
+## IMP-09 · Deleting leads has no confirmation
+
+**Status:** To do · **Priority:** Medium · **Area:** Frontend
+
+**Problem**
+The Delete button permanently removes every selected lead on a single click, with no confirmation and no undo.
+
+**Evidence (confirmed)**
+`frontend/src/components/LeadsList.tsx:89-92`: `handleDeleteSelected` calls `deleteLeadsMutation.mutate(selectedLeads)` directly.
+
+**Next step**
+Show a confirmation dialog with the number of leads to delete before running the mutation, and move the mutation into the `useApiMutation` registry.
+
+---
+
+## IMP-10 · CSV import reports success when only duplicates found
+
+**Status:** To do · **Priority:** Low · **Area:** Frontend
+
+**Problem**
+When every row is a duplicate or invalid, the import still shows a green toast such as "Successfully imported 0 leads! (3 duplicates skipped)". The message also always says "leads", even for one lead.
+
+**Evidence (confirmed)**
+`frontend/src/components/CsvImportModal.tsx:115-124` always calls `toast.success` with `Successfully imported ${data.importedCount} leads!`.
+
+**Next step**
+Show a warning toast when `importedCount` is 0 (for example "No leads imported: 3 duplicates skipped"), keep the success toast for partial imports, and pluralize "lead"/"leads".
+
+---
+
+## IMP-11 · No range selection in the leads table
+
+**Status:** To do · **Priority:** Low · **Area:** Frontend
+
+**Problem**
+Leads can only be selected one checkbox at a time or all at once, so selecting a block of rows is slow.
+
+**Evidence (confirmed)**
+`frontend/src/components/LeadsList.tsx:72-86`: `handleSelectAll` and `handleSelectLead` toggle single ids. Nothing tracks the last clicked row or reads `shiftKey`.
+
+**Next step**
+Track the last clicked row index, and on shift+click select or deselect every row between it and the current row in list order.
