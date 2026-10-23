@@ -1,0 +1,9 @@
+firstName,lastName,email,jobTitle,countryCode,companyName,yearsAtCompany,phoneNumber,linkedinUrl
+Grace,Hopper,grace.hopper@navy-labs.com,Rear admiral,US,Navy Labs,12,+1-202-555-0143,https://www.linkedin.com/in/gracehopper
+Ada,Lovelace,ada@analytical-engines.co.uk,"Mathematician, writer",GB,Analytical Engines,3,+44 20 7946 0958,https://uk.linkedin.com/in/adalovelace
+Alan,Turing,alan.turing@bletchley.org,Cryptanalyst,GB,Bletchley Park,0,(020)7946-0321x204,https://linkedin.com/in/alan-turing/
+Margarita,Salas,msalas@cbm-research.es,Biochemist,ES,CBM Research,25,+34 912 345 678,https://es.linkedin.com/in/margaritasalas
+Katherine,Johnson,kjohnson@langley-space.com,Research mathematician,US,Langley Space,33,,https://www.linkedin.com/in/katherine-johnson-nasa
+Hedy,Lamarr,hedy@frequency-hop.com,Inventor,AT,Frequency Hop Inc.,7,001-310-555-0199,
+Tim,Berners,tim@webfoundation.org,Founder,GB,Web Foundation,,+44 7700 900123,https://www.linkedin.com/in/timbl?trk=public_profile
+Radia,Perlman,radia.perlman@spanning-tree.net,Network engineer,US,Spanning Tree Networks,15,555.0177,https://www.linkedin.com/in/radiaperlman
