@@ -85,5 +85,11 @@ const apiMutationsOptions = (queryClient: QueryClient) =>
           queryClient.invalidateQueries({ queryKey: ['leads', 'getMany'] })
         },
       }),
+      verifyEmails: makeOptions({
+        mutationFn: api.leads.verifyEmails,
+        onSettled: () => {
+          queryClient.invalidateQueries({ queryKey: ['leads', 'getMany'] })
+        },
+      }),
     },
   }) as const satisfies MutationsApi<typeof api>
