@@ -6,7 +6,7 @@
 | Owner        | Engineering                   |
 | Last updated | 2026-10-23                    |
 | Source       | Findings from completed tasks |
-| Next ID      | IMP-07                        |
+| Next ID      | IMP-08                        |
 
 Only pending items are listed. Resolved items are removed; their history lives in git.
 
@@ -21,6 +21,7 @@ Only pending items are listed. Resolved items are removed; their history lives i
 | IMP-04 | Country code list duplicated across FE and BE       | Architecture | Medium   | To do          |
 | IMP-05 | API routes cannot be tested in isolation            | Backend      | Medium   | To do          |
 | IMP-06 | CSV columns `yearsInRole` and `phoneNumber` ignored | Frontend     | Medium   | To do          |
+| IMP-07 | Email verification blocks the HTTP request          | Backend      | Medium   | To do          |
 | IMP-03 | Seeded lead uses non-ISO country `UK`               | Data         | Low      | Needs decision |
 
 ---
@@ -97,3 +98,18 @@ All sample CSVs in `docs/` include `yearsInRole` and `phoneNumber`, but the pars
 
 **Next step**
 Cover this in the "New lead fields" task (phone number, years at company, LinkedIn).
+
+---
+
+## IMP-07 · Email verification blocks the HTTP request
+
+**Status:** To do · **Priority:** Medium · **Area:** Backend
+
+**Problem**
+`POST /leads/verify-emails` runs one workflow per lead in sequence inside the request, opens a new Temporal connection per call and uses `Date.now()` workflow IDs. After the retry fix a failing lead no longer hangs forever, but a slow provider still holds the response about 17s per failing lead, and repeat clicks start duplicate workflows.
+
+**Evidence (confirmed)**
+`backend/src/index.ts:259-310`: `Connection.connect` per request, `await client.workflow.execute` in a `for` loop, `workflowId: verify-email-${lead.id}-${Date.now()}`. The email verification fix bounded the activity to 3 attempts of 5s each.
+
+**Next step**
+Start the workflows with stable IDs and return 202, then have the UI poll `emailVerified`.

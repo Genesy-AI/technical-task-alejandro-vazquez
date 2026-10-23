@@ -299,6 +299,11 @@ app.post('/leads/verify-emails', async (req: Request, res: Response) => {
         results.push({ leadId: lead.id, emailVerified: isVerified })
         verifiedCount += 1
       } catch (error) {
+        await prisma.lead.update({
+          where: { id: lead.id },
+          data: { emailVerified: null },
+        })
+
         errors.push({
           leadId: lead.id,
           leadName: `${lead.firstName} ${lead.lastName}`.trim(),
