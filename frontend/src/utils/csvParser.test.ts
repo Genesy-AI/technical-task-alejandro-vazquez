@@ -223,4 +223,24 @@ Jane,Johnson,jane@example.com`
     expect(result[0].email).toBe('john@example.com')
     expect(result[0].isValid).toBe(true)
   })
+
+  it.each(['XXX', '12', 'ZZ', 'UK'])('should mark lead invalid for country code %s', (code) => {
+    const csv = `firstName,lastName,email,countryCode
+John,Doe,john@example.com,${code}`
+
+    const result = parseCsv(csv)
+
+    expect(result[0].isValid).toBe(false)
+    expect(result[0].errors).toEqual(['Invalid country code'])
+  })
+
+  it('should normalize lowercase country codes to uppercase', () => {
+    const csv = `firstName,lastName,email,countryCode
+John,Doe,john@example.com,es`
+
+    const result = parseCsv(csv)
+
+    expect(result[0].countryCode).toBe('ES')
+    expect(result[0].isValid).toBe(true)
+  })
 })
