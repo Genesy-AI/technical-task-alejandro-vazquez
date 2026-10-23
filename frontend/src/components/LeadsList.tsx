@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FC, useState } from 'react'
 import toast from 'react-hot-toast'
+import { IconBrandLinkedin } from '@tabler/icons-react'
 import { api } from '../api'
 import { useApiMutation } from '../api/mutations/useApiMutation'
 import { MessageTemplateModal } from './MessageTemplateModal'
 import { CsvImportModal } from './CsvImportModal'
+import { isValidLinkedinUrl } from '../utils/csvParser'
 
 export const LeadsList: FC = () => {
   const [selectedLeads, setSelectedLeads] = useState<number[]>([])
@@ -253,6 +255,15 @@ export const LeadsList: FC = () => {
                   Country
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+                  Phone
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+                  Years at Company
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+                  LinkedIn
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
                   Message
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
@@ -317,6 +328,28 @@ export const LeadsList: FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{lead.countryCode || '-'}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{lead.phoneNumber || '-'}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{lead.yearsAtCompany ?? '-'}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {lead.linkedinUrl && isValidLinkedinUrl(lead.linkedinUrl) ? (
+                      <a
+                        href={lead.linkedinUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={lead.linkedinUrl}
+                        aria-label={`LinkedIn profile of ${lead.firstName} ${lead.lastName || ''}`.trim()}
+                        className="inline-flex text-blue-700 hover:text-blue-900"
+                      >
+                        <IconBrandLinkedin size={20} />
+                      </a>
+                    ) : (
+                      <div className="text-sm text-gray-900">-</div>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <div className="text-sm text-gray-900 max-w-xs truncate" title={lead.message || ''}>

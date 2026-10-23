@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseCsv, isValidEmail } from './csvParser'
+import { parseCsv, isValidEmail, isValidLinkedinUrl, parseYearsAtCompany } from './csvParser'
 
 describe('isValidEmail', () => {
   it('should return true for valid email addresses', () => {
@@ -242,5 +242,99 @@ John,Doe,john@example.com,es`
 
     expect(result[0].countryCode).toBe('ES')
     expect(result[0].isValid).toBe(true)
+  })
+})
+
+describe('parseYearsAtCompany', () => {
+  it('should parse non-negative whole numbers', () => {
+    expect(parseYearsAtCompany('0')).toBe(0)
+    expect(parseYearsAtCompany('15')).toBe(15)
+  })
+
+  it.each(['-1', '2.5', 'abc', '3 years', ''])('should reject %s', (value) => {
+    expect(parseYearsAtCompany(value)).toBeNull()
+  })
+})
+
+describe('isValidLinkedinUrl', () => {
+  it.each([
+    'https://www.linkedin.com/in/ada-lovelace',
+    'https://linkedin.com/in/ada',
+    'http://es.linkedin.com/in/ada',
+  ])('should accept %s', (value) => {
+    expect(isValidLinkedinUrl(value)).toBe(true)
+  })
+
+  it.each([
+    'linkedin.com/in/ada',
+    'https://example.com/in/ada',
+    'https://notlinkedin.com/in/ada',
+    'javascript:alert(1)',
+    'not a url',
+  ])('should reject %s', (value) => {
+    expect(isValidLinkedinUrl(value)).toBe(false)
+  })
+})
+
+describe('parseCsv new lead fields', () => {
+  it('should parse phone, years at company and LinkedIn URL', () => {
+    const csv = `firstName,lastName,email,phoneNumber,yearsAtCompany,linkedinUrl
+John,Doe,john@example.com,(760)551-9973x6454,7,https://www.linkedin.com/in/johndoe`
+
+    const result = parseCsv(csv)
+
+    expect(result[0]).toMatchObject({
+      phoneNumber: '(760)551-9973x6454',
+      yearsAtCompany: 7,
+      linkedinUrl: 'https://www.linkedin.com/in/johndoe',
+      isValid: true,
+    })
+  })
+
+  it.each([
+    ['phone', 'yearsInRole', 'LinkedIn'],
+    ['Phone Number', 'Years at current company', 'LinkedIn Profile'],
+  ])('should accept header aliases %s, %s, %s', (phoneHeader, yearsHeader, linkedinHeader) => {
+    const csv = `firstName,lastName,email,${phoneHeader},${yearsHeader},${linkedinHeader}
+John,Doe,john@example.com,555-0100,2,https://linkedin.com/in/john`
+
+    const result = parseCsv(csv)
+
+    expect(result[0].phoneNumber).toBe('555-0100')
+    expect(result[0].yearsAtCompany).toBe(2)
+    expect(result[0].linkedinUrl).toBe('https://linkedin.com/in/john')
+  })
+
+  it('should leave empty optional fields undefined and keep the lead valid', () => {
+    const csv = `firstName,lastName,email,phoneNumber,yearsInRole,linkedinUrl
+John,Doe,john@example.com,,,`
+
+    const result = parseCsv(csv)
+
+    expect(result[0].phoneNumber).toBeUndefined()
+    expect(result[0].yearsAtCompany).toBeUndefined()
+    expect(result[0].linkedinUrl).toBeUndefined()
+    expect(result[0].isValid).toBe(true)
+  })
+
+  it('should mark lead invalid for invalid years at company', () => {
+    const csv = `firstName,lastName,email,yearsInRole
+John,Doe,john@example.com,-3`
+
+    const result = parseCsv(csv)
+
+    expect(result[0].isValid).toBe(false)
+    expect(result[0].yearsAtCompany).toBeUndefined()
+    expect(result[0].errors).toEqual(['Years at company must be a non-negative whole number'])
+  })
+
+  it('should mark lead invalid for a non-LinkedIn URL', () => {
+    const csv = `firstName,lastName,email,linkedinUrl
+John,Doe,john@example.com,https://example.com/john`
+
+    const result = parseCsv(csv)
+
+    expect(result[0].isValid).toBe(false)
+    expect(result[0].errors).toEqual(['Invalid LinkedIn URL'])
   })
 })

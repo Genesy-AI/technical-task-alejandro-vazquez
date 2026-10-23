@@ -69,6 +69,9 @@ const apiMutationsOptions = (queryClient: QueryClient) =>
             countryCode: null,
             companyName: null,
             message: null,
+            phoneNumber: null,
+            yearsAtCompany: null,
+            linkedinUrl: null,
             ...input,
           }
           const newLeads: ApiOutput<typeof api.leads.getMany> = [...(previousValue ?? []), newLead]
@@ -88,6 +91,12 @@ const apiMutationsOptions = (queryClient: QueryClient) =>
       verifyEmails: makeOptions({
         mutationFn: api.leads.verifyEmails,
         onSettled: () => {
+          queryClient.invalidateQueries({ queryKey: ['leads', 'getMany'] })
+        },
+      }),
+      bulkImport: makeOptions({
+        mutationFn: api.leads.bulkImport,
+        onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: ['leads', 'getMany'] })
         },
       }),

@@ -15,14 +15,13 @@ Only pending items are listed. Resolved items are removed; their history lives i
 
 ## Summary
 
-| ID     | Title                                               | Area         | Priority | Status         |
-| ------ | --------------------------------------------------- | ------------ | -------- | -------------- |
-| IMP-02 | Frontend build is broken on `main`                  | Frontend     | High     | To do          |
-| IMP-04 | Country code list duplicated across FE and BE       | Architecture | Medium   | To do          |
-| IMP-05 | API routes cannot be tested in isolation            | Backend      | Medium   | To do          |
-| IMP-06 | CSV columns `yearsInRole` and `phoneNumber` ignored | Frontend     | Medium   | To do          |
-| IMP-07 | Email verification blocks the HTTP request          | Backend      | Medium   | To do          |
-| IMP-03 | Seeded lead uses non-ISO country `UK`               | Data         | Low      | Needs decision |
+| ID     | Title                                         | Area         | Priority | Status         |
+| ------ | --------------------------------------------- | ------------ | -------- | -------------- |
+| IMP-02 | Frontend build is broken on `main`            | Frontend     | High     | To do          |
+| IMP-04 | Country code list duplicated across FE and BE | Architecture | Medium   | To do          |
+| IMP-05 | API routes cannot be tested in isolation      | Backend      | Medium   | To do          |
+| IMP-07 | Email verification blocks the HTTP request    | Backend      | Medium   | To do          |
+| IMP-03 | Seeded lead uses non-ISO country `UK`         | Data         | Low      | Needs decision |
 
 ---
 
@@ -64,7 +63,7 @@ Decide whether to migrate stored `UK` values to `GB`, or to accept `UK` as an al
 `frontend/src/utils/countryCodes.ts` and `backend/src/utils/countryCodes.ts` hold identical lists, because the repo has no shared types package. Lead fields are duplicated across the stack in the same way.
 
 **Evidence (confirmed)**
-Both files were created as copies in the CSV country code fix (`fix/csv-country-codes`).
+Both files were created as copies in the CSV country code fix (`fix/csv-country-codes`). The new lead fields task added the same duplication for LinkedIn URL validation (`isValidLinkedinUrl` in `frontend/src/utils/csvParser.ts`, `parseLinkedinUrl` in `backend/src/index.ts`). Message template fields are no longer duplicated: the composer loads them from `GET /leads/template-fields` (`TEMPLATE_FIELDS` in `backend/src/utils/messageGenerator.ts`).
 
 **Next step**
 Introduce a shared package (for example a pnpm workspace) for lead types and validation rules.
@@ -83,21 +82,6 @@ Importing `backend/src/index.ts` calls `app.listen` and starts the Temporal work
 
 **Next step**
 Export the Express `app` from its own module, start the server and worker in a separate entry point, and add route tests with `supertest`.
-
----
-
-## IMP-06 · CSV columns `yearsInRole` and `phoneNumber` ignored
-
-**Status:** To do · **Priority:** Medium · **Area:** Frontend
-
-**Problem**
-All sample CSVs in `docs/` include `yearsInRole` and `phoneNumber`, but the parser's header `switch` drops them during import.
-
-**Evidence (confirmed)**
-`frontend/src/utils/csvParser.ts`: the header `switch` has no case for these columns.
-
-**Next step**
-Cover this in the "New lead fields" task (phone number, years at company, LinkedIn).
 
 ---
 

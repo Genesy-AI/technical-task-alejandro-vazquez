@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client'
 import express, { Request, Response } from 'express'
 import { Connection, Client } from '@temporalio/client'
 import { verifyEmailWorkflow } from './workflows'
-import { generateMessageFromTemplate } from './utils/messageGenerator'
+import { generateMessageFromTemplate, TEMPLATE_FIELDS } from './utils/messageGenerator'
 import { isValidCountryCode } from './utils/countryCodes'
 import { runTemporalWorker } from './worker'
 const prisma = new PrismaClient()
@@ -37,6 +37,10 @@ app.post('/leads', async (req: Request, res: Response) => {
     },
   })
   res.json(lead)
+})
+
+app.get('/leads/template-fields', (req: Request, res: Response) => {
+  res.json(TEMPLATE_FIELDS)
 })
 
 app.get('/leads/:id', async (req: Request, res: Response) => {
@@ -168,6 +172,24 @@ app.post('/leads/generate-messages', async (req: Request, res: Response) => {
   }
 })
 
+const parseYearsAtCompany = (value: unknown): number | null => {
+  if (value === null || value === undefined || value === '') return null
+  const years = Number(value)
+  return Number.isInteger(years) && years >= 0 ? years : null
+}
+
+const parseLinkedinUrl = (value: unknown): string | null => {
+  if (typeof value !== 'string' || !value.trim()) return null
+  try {
+    const url = new URL(value.trim())
+    const host = url.hostname.toLowerCase()
+    const isLinkedin = host === 'linkedin.com' || host.endsWith('.linkedin.com')
+    return (url.protocol === 'https:' || url.protocol === 'http:') && isLinkedin ? value.trim() : null
+  } catch {
+    return null
+  }
+}
+
 app.post('/leads/bulk', async (req: Request, res: Response) => {
   if (!req.body || typeof req.body !== 'object') {
     return res.status(400).json({ error: 'Request body is required and must be valid JSON' })
@@ -232,6 +254,12 @@ app.post('/leads/bulk', async (req: Request, res: Response) => {
             jobTitle: lead.jobTitle ? lead.jobTitle.trim() : null,
             countryCode: lead.countryCode ? lead.countryCode.trim().toUpperCase() : null,
             companyName: lead.companyName ? lead.companyName.trim() : null,
+            phoneNumber:
+              typeof lead.phoneNumber === 'string' && lead.phoneNumber.trim()
+                ? lead.phoneNumber.trim()
+                : null,
+            yearsAtCompany: parseYearsAtCompany(lead.yearsAtCompany),
+            linkedinUrl: parseLinkedinUrl(lead.linkedinUrl),
           },
         })
         importedCount++
