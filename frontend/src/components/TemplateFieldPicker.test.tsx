@@ -47,6 +47,14 @@ describe('TemplateFieldPicker', () => {
     return { onInsert, onRetry }
   }
 
+  const toggle = () => container.querySelector('button[aria-haspopup]') as HTMLButtonElement
+
+  const open = () => {
+    act(() => toggle().click())
+  }
+
+  const panel = () => container.querySelector('[role="dialog"]')
+
   const search = (value: string) => {
     const input = container.querySelector('input') as HTMLInputElement
     const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!
@@ -60,8 +68,32 @@ describe('TemplateFieldPicker', () => {
   const fieldButtons = () =>
     Array.from(container.querySelectorAll<HTMLButtonElement>('[role="group"] button'))
 
+  it('should only show the Insert field button until it is clicked', () => {
+    render()
+
+    expect(toggle().textContent).toContain('Insert field')
+    expect(toggle().getAttribute('aria-expanded')).toBe('false')
+    expect(panel()).toBeNull()
+
+    open()
+
+    expect(toggle().getAttribute('aria-expanded')).toBe('true')
+    expect(panel()).not.toBeNull()
+    expect(document.activeElement).toBe(container.querySelector('input'))
+  })
+
+  it('should close the panel when the button is clicked again', () => {
+    render()
+
+    open()
+    open()
+
+    expect(panel()).toBeNull()
+  })
+
   it('should render fields grouped by category', () => {
     render()
+    open()
 
     const groups = Array.from(container.querySelectorAll('[role="group"]'))
     expect(groups.map((group) => group.getAttribute('aria-label'))).toEqual(['Person', 'Company', 'Contact'])
@@ -72,6 +104,7 @@ describe('TemplateFieldPicker', () => {
 
   it('should filter fields by label or key', () => {
     render()
+    open()
 
     search('link')
     expect(fieldButtons().map((button) => button.textContent)).toEqual([
@@ -85,23 +118,27 @@ describe('TemplateFieldPicker', () => {
 
   it('should show an empty state when nothing matches', () => {
     render()
+    open()
 
     search('zzz')
     expect(fieldButtons()).toHaveLength(0)
     expect(container.textContent).toContain('No fields match "zzz"')
   })
 
-  it('should call onInsert with the field key when a field is clicked', () => {
+  it('should call onInsert and close the panel when a field is clicked', () => {
     const { onInsert } = render()
+    open()
 
     const phoneButton = fieldButtons().find((button) => button.textContent?.includes('{phoneNumber}'))!
     act(() => phoneButton.click())
 
     expect(onInsert).toHaveBeenCalledWith('phoneNumber')
+    expect(panel()).toBeNull()
   })
 
-  it('should insert the first match on Enter and clear the search', () => {
+  it('should insert the first match on Enter, close the panel and reset the search', () => {
     const { onInsert } = render()
+    open()
 
     const input = search('phone')
     act(() => {
@@ -109,13 +146,45 @@ describe('TemplateFieldPicker', () => {
     })
 
     expect(onInsert).toHaveBeenCalledWith('phoneNumber')
-    expect(input.value).toBe('')
+    expect(panel()).toBeNull()
+
+    open()
+    expect((container.querySelector('input') as HTMLInputElement).value).toBe('')
   })
 
-  it('should show a retry action when loading fields fails', () => {
-    const { onRetry } = render({ fields: undefined, isError: true })
+  it('should close the panel on Escape without letting the event reach the document', () => {
+    render()
+    open()
+    const documentListener = vi.fn()
+    document.addEventListener('keydown', documentListener)
 
-    const retry = container.querySelector('button') as HTMLButtonElement
+    act(() => {
+      container
+        .querySelector('input')!
+        .dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    })
+
+    document.removeEventListener('keydown', documentListener)
+    expect(panel()).toBeNull()
+    expect(documentListener).not.toHaveBeenCalled()
+  })
+
+  it('should close the panel when clicking outside of it', () => {
+    render()
+    open()
+
+    act(() => {
+      document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+    })
+
+    expect(panel()).toBeNull()
+  })
+
+  it('should show a retry action inside the panel when loading fields fails', () => {
+    const { onRetry } = render({ fields: undefined, isError: true })
+    open()
+
+    const retry = panel()!.querySelector('button') as HTMLButtonElement
     expect(retry.textContent).toBe('Retry')
     act(() => retry.click())
     expect(onRetry).toHaveBeenCalled()
